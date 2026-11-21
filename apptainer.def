@@ -24,4 +24,3 @@ From: mambaorg/micromamba:1.5.10
 
 %labels
     org.opencontainers.image.title oktopy
-    org.opencontainers.image.licenses Apache-2.0
