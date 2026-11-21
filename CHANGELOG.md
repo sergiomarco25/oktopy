@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.0 (unreleased)
+## 0.1.0 (2026-11-21)
 
 First standalone release of the claim-replication engine, until now copied into each project as `src/claimstore/`.
 
