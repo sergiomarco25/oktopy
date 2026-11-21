@@ -11,7 +11,7 @@ From: mambaorg/micromamba:1.5.10
 %post
     export MAMBA_ROOT_PREFIX=/opt/conda
     micromamba install -y -r /opt/conda -n base -f /opt/oktopy/envs/oktopy.yml
-    micromamba clean -r /opt/conda --all --yes
+    micromamba clean --all --yes
     /opt/conda/bin/python -m pip install --no-deps --no-cache-dir /opt/oktopy
     /opt/conda/bin/oktopy --version
     /opt/conda/bin/Rscript -e 'suppressPackageStartupMessages({library(edgeR); library(limma); library(DESeq2); library(data.table)})'
