@@ -1,4 +1,4 @@
 # The engine, pinned to the version this project was made with ([project] oktopy in config/project.toml).
-# Steps that read single-cell data need the analysis extras: pip install "oktopy[analysis]" (same pin); the DE step
-# needs R with edgeR and data.table (oktopy's envs/oktopy.yml or its Docker image).
+# Steps that read single-cell data need the analysis extras (write oktopy[analysis] in the line below); the DE step
+# needs R with edgeR and data.table (oktopy's envs/oktopy.yml, or its Docker or Apptainer image).
 {{oktopy_requirement}}

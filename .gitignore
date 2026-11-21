@@ -1,8 +1,9 @@
 __pycache__/
 *.pyc
 .pytest_cache/
-build/
-dist/
+# package build output at the top only (src/oktopy/template/... and example/... have loader folders named build)
+/build/
+/dist/
 *.egg-info/
 # projects made while trying oktopy out
 /demo/

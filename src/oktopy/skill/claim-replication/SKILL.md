@@ -5,8 +5,9 @@ description: Build or extend a claim-replication project for a field (a disease,
 
 # Claim replication: published claims -> re-tested, rated evidence
 
-The method behind oktopy's claim stores, written so it can be run on any field. It needs the `oktopy` package
-(`pip install "oktopy[analysis]"`, R with edgeR for the DE step; or the oktopy Docker image); everything field-specific
+The method behind oktopy's claim stores, written so it can be run on any field. It needs the `oktopy` package with
+its analysis extras and R with edgeR for the DE step (the conda environment, Docker or Apptainer image of the oktopy
+repository; its README says how); everything field-specific
 is config, one loader per dataset and one signature script per paper. Every project made with `oktopy new` gets a copy
 of this skill in `.claude/skills/claim-replication/` (update it from the oktopy release the project pins).
 `oktopy example DIR` makes a worked example (two synthetic datasets, ten claims) that runs end to end in minutes:
