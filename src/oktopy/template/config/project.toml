@@ -1,0 +1,92 @@
+# Project configuration (oktopy.config): every path, the pipeline, the release rules and facts about this field.
+# Values may use {repo} and {data_root}; relative paths are relative to this project's folder. Environment variables
+# {{env_prefix}}_<NAME> override paths (e.g. {{env_prefix}}_DATA_ROOT). Reference: docs/config.md of oktopy.
+
+[project]
+name = "{{name}}"
+title = "{{title}}"
+description = "{{description}}"
+keywords = []
+server_name = "{{name}}"
+licence = "CC BY 4.0 (data and text); code Apache-2.0"
+env_prefix = "{{env_prefix}}"
+# The oktopy version this project was made and checked with (oktopy warns when another version runs it)
+oktopy = "{{oktopy_version}}"
+
+[server]
+# The MCP server's instructions (a file next to this one) and the ids quoted in its tool descriptions
+instructions = "server_instructions.md"
+examples = { claim = "example2024-C01", finding = "F-example", statement = "CS01", gene = "GENE1", cell = "All", region = "multiple", dataset = "example2024", background = "BG-example", paper = "example2024", cell_types = "All", regions = "multiple" }
+
+[claims]
+# Papers whose claims were made on another paper's cohort: paper id -> dataset id
+paper_to_dataset = {}
+# How the store describes samples and claims of this field (oktopy.build_store)
+sample_type = "post-mortem tissue"
+heritability_label = "genetic risk"
+stage_available_column = "stage_available"
+staging_field = "staging"
+
+[rating]
+# Test templates of each rating family (claims/RATING.md section 2)
+effect_templates = ["composition_clr", "composition_labels", "composition_clr_sex", "sex_pathology_shift", "de_genes",
+                    "geneset_shift", "state_genes_shift", "trajectory_genes", "communication_genes"]
+pattern_templates = ["state_existence", "gwas_magma_specificity", "gwas_magma", "familial_overlap"]
+# Datasets of sorted nuclei or cells, whose composition is not tissue composition
+enriched_sort = []
+# Datasets that may share donors: dataset -> other datasets (a caveat on the rating, not merged)
+shared_banks = {}
+shared_bank_caveat = "{dataset} may share donors with {others} (not verified)"
+not_assessed = "a gradient with disease stage; adjustment for age, sex and sample quality"
+
+[tests]
+# Claim re-tests (oktopy.retest). Gene symbols renamed since publication: old = "new" (MARCH*/SEPT* built in)
+gene_aliases = {}
+# Contrast codes that compare two contrasts' fold changes: code = { contrasts = ["a", "b"], template = "name" }
+concordance = {}
+# genetic_enrichment claims: "module:function" of this field's package (none: such claims are not testable)
+genetic_test = ""
+# A curated signature whose rows name cell classes is applied per class (claims/SIGNATURES.md)
+signatures_per_class = true
+# Smallest gene set tested with the donor score; smaller sets of 2+ genes use the random-gene competitive test, which
+# was liberal under shuffled labels. 2 by default.
+min_score_genes = 2
+# Claims with the contrast "sex" are tested within each sex (claims/CURATED_TESTS.md); none: not testable
+# sex = { column = "sex", contrast = "case_vs_control" }
+
+[atlas]
+# The atlas page (oktopy atlas -> reports/atlas.html); every key is optional (oktopy.atlas):
+# title, headline, lead (default: the project's title and description), disease (short name of the case group),
+# case_label, scope (what the records are about, for "Ask the atlas"), examples (questions), ask_placeholder,
+# stop_words, region_groups / region_group_of (columns of the data landscape), key_findings ([{label, title, text,
+# href}]), graph_start (node ids), template (a page of the project's own), extras ("module:function" adding tables)
+disease = ""
+
+[paths]
+# Large files (raw/, harmonised/, results/) live under work; keep them out of git (.gitignore)
+data_root = "data"
+work = "{data_root}"
+
+[envs]
+# A separate Python for steps run by another interpreter (release re-rating), and an R environment folder whose
+# bin/Rscript has edgeR and data.table (empty: Rscript on PATH)
+python = ""
+r_env = ""
+
+[pipeline]
+# Datasets the pipeline builds and tests, one loader each: src/{{package}}/build/<dataset>.py
+loaders = "{{package}}.build"
+datasets = []
+# Memory of per-dataset jobs on a cluster (workflow/Snakefile): default and per dataset
+default_mem_gb = 64
+mem_gb = {}
+
+[release]
+public_repository = "{{repository}}"
+# Datasets and papers kept out of every public export, and findings re-derived without them
+private_datasets = []
+private_papers = []
+separable_findings = []
+private_modules = []
+
+[release.rederived_findings]

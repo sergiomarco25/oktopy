@@ -1,0 +1,60 @@
+name: ci
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+jobs:
+  unit:
+    # engine and project-template checks with the core dependencies (the end-to-end test skips without R)
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: pip install -e ".[test]"
+      - run: python -m compileall -q src tests
+      - run: pytest -q tests
+
+  example:
+    # the README quickstart on a clean runner: conda environment, install, a new project, the worked example
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -el {0}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mamba-org/setup-micromamba@v2
+        with:
+          environment-file: envs/oktopy.yml
+          cache-environment: true
+      - run: pip install --no-deps -e .
+      - name: a new project passes its own checks
+        run: |
+          oktopy new "$RUNNER_TEMP/my-field" --name my-field --title "My field claim store"
+          cd "$RUNNER_TEMP/my-field" && pytest -q tests
+      - name: the worked example, end to end
+        run: |
+          oktopy example "$RUNNER_TEMP/demo"
+          cd "$RUNNER_TEMP/demo" && oktopy run
+      - name: every test, the end-to-end one required
+        run: OKTOPY_E2E=1 pytest -q tests
+      - uses: actions/upload-artifact@v4
+        with:
+          name: example-atlas
+          path: ${{ runner.temp }}/demo/reports/atlas.html
+
+  docker:
+    # the image builds and runs the worked example
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t oktopy .
+      - run: |
+          mkdir -p "$RUNNER_TEMP/w" && chmod 777 "$RUNNER_TEMP/w"
+          docker run --rm -v "$RUNNER_TEMP/w":/work oktopy example demo
+          docker run --rm -v "$RUNNER_TEMP/w/demo":/work oktopy run
+          test -s "$RUNNER_TEMP/w/demo/reports/atlas.html"

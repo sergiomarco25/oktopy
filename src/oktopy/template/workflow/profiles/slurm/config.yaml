@@ -1,0 +1,16 @@
+# SLURM: snakemake --profile workflow/profiles/slurm   (needs snakemake-executor-plugin-slurm)
+# Set your cluster's partition and QOS below (sinfo / sacctmgr show qos list them). Memory per dataset comes from
+# [pipeline] mem_gb / default_mem_gb in config/project.toml. If preempted jobs are cancelled rather than requeued on
+# your cluster, use a QOS without preemption so the workflow does not wait for them.
+executor: slurm
+jobs: 40
+rerun-triggers: [mtime]
+latency-wait: 120
+retries: 1
+printshellcmds: true
+default-resources:
+  slurm_partition: "<partition>"
+  qos: "<qos>"
+  mem_mb: 16000
+  runtime: 360
+  cpus_per_task: 4

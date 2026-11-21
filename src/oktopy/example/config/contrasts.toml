@@ -1,0 +1,22 @@
+# Contrasts of the example field: which donor x region units are case and which are reference (oktopy.contrasts).
+# Each side (case, ref) is a table of conditions on the unit metadata; a unit belongs to a side when all hold.
+#   column = "value" | ["a", "b"] | { contains = "x" } ;  stage = { min = 2 }  (stage defined below)
+
+[stage]
+name = "stage"
+columns = ["stage"]
+group_column = "disease"
+zero_group = "control"
+# The stage as a continuous covariate: claims "along disease stage" (contrast code stage, config/contexts.toml) are
+# tested against it, with controls counted as stage 0
+contrast = "stage"
+label = "disease stage"
+
+[contrasts.case_vs_control]
+case = { disease = "case" }
+ref = { disease = "control" }
+
+# Later-stage cases against controls: shows a contrast built from the stage
+[contrasts.late_vs_control]
+case = { disease = "case", stage = { min = 2 } }
+ref = { disease = "control" }

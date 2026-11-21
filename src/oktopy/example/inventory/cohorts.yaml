@@ -1,0 +1,35 @@
+# Cohort context per harmonised dataset (oktopy.build_store reads it into the store's dataset table). In a real
+# project: where the donors come from, how cases and controls were defined, staging, sampling and assay, each with
+# its source. The example's cohorts are synthetic.
+- dataset: smith2024
+  paper: smith2024
+  organism: Homo sapiens
+  sample_type: synthetic nuclei (oktopy worked example)
+  brain_banks: []
+  country: not_reported
+  ancestry:
+    summary: not_reported
+    counts: null
+    basis: not_reported
+    source: synthetic data
+  staging: disease stage 1-3 in cases, controls stage 0
+  disease_definitions: case = the example disease; control = without it
+  sampling: two regions (front, back) per donor
+  assay: simulated single-nucleus RNA counts
+  notes: made by src/example_claims/build/_synthetic.py
+- dataset: jones2025
+  paper: jones2025
+  organism: Homo sapiens
+  sample_type: synthetic nuclei (oktopy worked example)
+  brain_banks: []
+  country: not_reported
+  ancestry:
+    summary: not_reported
+    counts: null
+    basis: not_reported
+    source: synthetic data
+  staging: disease stage 1-3 in cases, controls stage 0
+  disease_definitions: case = the example disease; control = without it
+  sampling: one region (front) per donor
+  assay: simulated single-nucleus RNA counts
+  notes: made by src/example_claims/build/_synthetic.py

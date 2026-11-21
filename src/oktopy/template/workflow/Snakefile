@@ -1,0 +1,141 @@
+# Claim-replication workflow of this project: the steps of `oktopy run`, one job per rule x dataset.
+#
+#   snakemake -n                                   what would run (always look first)
+#   snakemake                                      run here (workflow/profiles/default: 4 cores)
+#   snakemake --profile workflow/profiles/slurm    run on SLURM (set partition and QOS in that profile first)
+#   snakemake robustness                           shuffled-label calibration and power (results/robustness/)
+#
+# Every path comes from config/project.toml (`oktopy config --json`); datasets and memory from its [pipeline] table.
+# Snakemake can run in any environment where the `oktopy` command is on the PATH.
+# Re-runs are triggered by input file times only: after a code or config change use --forcerun <rule>.
+#   harmonise -> pseudobulk -> de_cache (R) -> tests internal / cross -> meta -> store -> rating -> store -> atlas
+
+import json
+import subprocess
+from pathlib import Path
+
+# paths and datasets from the project's config, through the `oktopy` command (Snakemake may run in another Python)
+ROOT = Path(workflow.basedir).parent
+OK = f"oktopy --project {ROOT}"
+CFG = json.loads(subprocess.check_output(["oktopy", "--project", str(ROOT), "config", "--json"], text=True))
+
+workdir: str(ROOT)
+
+H = CFG["HARMONISED"]
+R = CFG["RESULTS"]
+DS = CFG["DATASETS"]
+NOT_PAPERS = {"claims", "findings", "background", "questions"}
+PAPER_CLAIMS = sorted(str(p.relative_to(ROOT)) for p in (ROOT / "claims").glob("*.yaml") if p.stem not in NOT_PAPERS)
+CURATED = sorted(str(p.relative_to(ROOT)) for p in (ROOT / "claims" / "signatures").glob("*.tsv")
+                 if not p.name.endswith("_unresolved.tsv")) if (ROOT / "claims" / "signatures").is_dir() else []
+OVERRIDES = [f for f in ("claims/contrast_overrides.tsv",) if (ROOT / f).exists()]
+
+wildcard_constraints:
+    ds="|".join(DS) or "none",
+    mode="internal|cross",
+
+
+def mem_mb(wc, attempt):
+    return CFG["MEM_GB"][wc.ds] * 1024 * attempt
+
+
+STORE = f"{R}/store/claim_store.sqlite"
+
+
+rule all:
+    input: "reports/atlas.html"
+
+
+# ---- claims -----------------------------------------------------------------------------------------------------------
+
+rule merge:
+    input: PAPER_CLAIMS
+    output: "claims/claims.yaml", "claims/claims.tsv"
+    shell: "{OK} merge"
+
+rule signatures:
+    input: "claims/claims.yaml", CURATED
+    output: "claims/signatures_all.tsv.gz"
+    shell: "{OK} signatures"
+
+rule contexts:  # needs the datasets' regions (donor tables)
+    input: "claims/claims.yaml", OVERRIDES, expand(f"{H}/{{ds}}_donors.tsv", ds=DS)
+    output: "claims/contexts.tsv"
+    shell: "{OK} contexts"
+
+
+# ---- per dataset: harmonise, pseudobulk, differential expression --------------------------------------------------------
+
+rule harmonise:
+    output:
+        h5ad=f"{H}/{{ds}}.h5ad",
+        donors=f"{H}/{{ds}}_donors.tsv",
+        pseudobulk=f"{H}/pseudobulk/{{ds}}.h5ad",
+    resources: mem_mb=mem_mb, runtime=720
+    shell: "{OK} harmonise {wildcards.ds}"
+
+rule pseudobulk:
+    input: f"{H}/pseudobulk/{{ds}}.h5ad"
+    output: f"{R}/de_cache/{{ds}}/input/manifest.tsv"
+    resources: mem_mb=mem_mb, runtime=240
+    shell: "{OK} pseudobulk {wildcards.ds}"
+
+rule de_cache:
+    input: f"{R}/de_cache/{{ds}}/input/manifest.tsv"
+    output: f"{R}/de_cache/{{ds}}/de_log.tsv"
+    resources: mem_mb=16 * 1024, runtime=720, cpus_per_task=2
+    shell: "{OK} de-cache {wildcards.ds}"
+
+
+# ---- re-tests, pooling, store, rating, atlas -----------------------------------------------------------------------------
+
+rule tests:
+    input:
+        "claims/contexts.tsv", "claims/signatures_all.tsv.gz", f"{R}/de_cache/{{ds}}/de_log.tsv",
+        f"{H}/{{ds}}.h5ad",
+    output: f"{R}/tests/{{mode}}/{{ds}}.tsv"
+    resources: mem_mb=mem_mb, runtime=360
+    shell: "{OK} tests {wildcards.mode} {wildcards.ds}"
+
+rule meta:
+    input: expand(f"{R}/tests/{{mode}}/{{ds}}.tsv", mode=["internal", "cross"], ds=DS)
+    output: f"{R}/meta/claim_meta.tsv"
+    shell: "{OK} meta"
+
+rule store:  # the store, its rating, and the store again with the ratings loaded
+    input: f"{R}/meta/claim_meta.tsv", "claims/contexts.tsv"
+    output: STORE, "claims/store/claim_rating.tsv"
+    shell: "{OK} store && {OK} rating && {OK} store"
+
+rule atlas:
+    input: STORE
+    output: "reports/atlas.html"
+    shell: "{OK} atlas"
+
+
+# ---- robustness (not part of `all`): shuffled-label calibration and power ----------------------------------------------
+
+CAL = f"{R}/robustness/calibration"
+
+rule calibrate:
+    input: f"{R}/de_cache/{{ds}}/de_log.tsv", "claims/signatures_all.tsv.gz"
+    output: touch(f"{CAL}/{{ds}}/done")
+    resources: mem_mb=16 * 1024, runtime=720, cpus_per_task=2
+    shell:
+        "{OK} calibrate de {wildcards.ds} --perms 5 --max-fits 40"
+        " && {OK} calibrate sets {wildcards.ds} --max-sets 60"
+        " && {OK} calibrate scores {wildcards.ds} --perms 10 --max-fits 40 --max-sets 30"
+        " && {OK} calibrate composition {wildcards.ds} --perms 100"
+
+rule calibration_summary:
+    input: expand(f"{CAL}/{{ds}}/done", ds=DS)
+    output: f"{R}/robustness/calibration_summary.tsv"
+    shell: "{OK} calibrate summary"
+
+rule power:
+    input: STORE
+    output: touch(f"{R}/robustness/power.done")
+    shell: "{OK} power"
+
+rule robustness:
+    input: f"{R}/robustness/calibration_summary.tsv", f"{R}/robustness/power.done"

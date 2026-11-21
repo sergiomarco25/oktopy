@@ -1,0 +1,6 @@
+label	ontology	term	ontology_id	ontology_label	check
+Epithelial	cl	epithelial cell	CL:0000066	epithelial cell	ok
+Immune	cl	leukocyte	CL:0000738	leukocyte	ok
+Fibroblast	cl	fibroblast	CL:0000057	fibroblast	ok
+Endothelial	cl	endothelial cell	CL:0000115	endothelial cell	ok
+All		all cells			no term

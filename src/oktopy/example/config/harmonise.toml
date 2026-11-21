@@ -1,0 +1,33 @@
+# Harmonisation of the example field: the common schema of every harmonised dataset and the rules that label cell
+# classes from marker genes (oktopy.harmonise).
+#
+# A loader (src/{{package}}/build/<dataset>.py) returns an AnnData with raw integer counts in X (cells x genes, gene
+# symbols as var_names) and the `obs` columns below (values it cannot fill: NaN / "unknown"), plus AUTHOR_TO_CLASS
+# mapping its author cell labels to `cell_classes` (empty: cells are labelled here by marker clustering).
+
+obs = ["dataset", "donor", "sample", "region", "disease", "disease_raw", "sex", "age", "pmi", "stage",
+       "author_cell_type", "cell_class"]
+donor_extras = []
+regions = ["front", "back"]
+diseases = ["control", "case"]
+cell_classes = ["Epithelial", "Immune", "Fibroblast", "Endothelial", "Unknown"]
+sorted_classes = []
+
+# Canonical markers of each class (a class needs >= 2 detected genes): used to check the authors' labels
+[markers]
+Epithelial = ["EPCAM", "KRT8", "KRT18", "CDH1", "KRT19"]
+Immune = ["PTPRC", "CD74", "LYZ", "CD3E", "CD68"]
+Fibroblast = ["COL1A1", "COL1A2", "DCN", "LUM", "PDGFRA"]
+Endothelial = ["PECAM1", "VWF", "CDH5", "CLDN5", "FLT1"]
+
+# One-step class call (no neuron subtypes in this tissue)
+[labelling]
+neuron_subtypes = []
+pan_neuronal = ""
+subtype_min_z = 0.5
+min_raw = 0.1
+precedence = {}
+
+[labelling.region_only]
+
+[labelling.require_detect]

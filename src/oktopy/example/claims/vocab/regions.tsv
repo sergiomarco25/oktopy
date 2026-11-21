@@ -1,0 +1,4 @@
+label	ontology	term	region_group	harmonised_regions	ontology_id	ontology_label	check
+front		front part of the example tissue	example tissue	front			no term (fictitious tissue)
+back		back part of the example tissue	example tissue	back			no term (fictitious tissue)
+multiple		several regions					no term

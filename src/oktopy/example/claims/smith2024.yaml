@@ -1,0 +1,134 @@
+# Claims of a fictitious paper (Smith et al. 2024) for the oktopy worked example; the data are synthetic
+# (src/{{package}}/build/_synthetic.py says which effects are planted). Format: claims/SCHEMA.md, config/schema.toml.
+- id: smith2024-C01
+  paper: smith2024
+  statement: Immune cells make up a larger share of nuclei in cases than in controls.
+  quote: immune cells were expanded in cases
+  location: Fig. 1c
+  centrality: headline
+  modality: snRNA
+  region: multiple
+  cell_type: Immune
+  cell_state: ''
+  claim_type: composition
+  direction: up
+  comparison: case vs control
+  genes: []
+  gene_source: ''
+  reported_stat: 'Wilcoxon on donors, p = 0.002, 56 cases and 56 controls'
+  unit_of_analysis: donors
+  method: Wilcoxon on donor proportions
+  testable_with: rna
+  test_template: composition_donor
+  requires: ''
+  notes: ''
+- id: smith2024-C02
+  paper: smith2024
+  statement: SPP1 is up-regulated in immune cells of cases.
+  quote: SPP1 was the top up-regulated gene in immune cells
+  location: Fig. 2a
+  centrality: main
+  modality: snRNA
+  region: multiple
+  cell_type: Immune
+  cell_state: ''
+  claim_type: de_gene
+  direction: up
+  comparison: case vs control
+  genes: [SPP1]
+  gene_source: text
+  reported_stat: 'log2FC 1.6, FDR 1e-6'
+  unit_of_analysis: donors
+  method: pseudobulk edgeR
+  testable_with: rna
+  test_template: de_pseudobulk
+  requires: ''
+  notes: ''
+- id: smith2024-C03
+  paper: smith2024
+  statement: An interferon response programme is induced in epithelial cells of cases.
+  quote: epithelial cells in cases showed a strong interferon response
+  location: Fig. 3b
+  centrality: headline
+  modality: snRNA
+  region: multiple
+  cell_type: Epithelial
+  cell_state: interferon response
+  claim_type: de_pathway
+  direction: up
+  comparison: case vs control
+  genes: [IFI6, ISG15, MX1, OAS1, IFIT3]
+  gene_source: text
+  reported_stat: 'module score, p < 0.001'
+  unit_of_analysis: cells
+  method: module score, Wilcoxon on cells
+  testable_with: rna
+  test_template: geneset_shift
+  requires: ''
+  notes: ''
+- id: smith2024-C04
+  paper: smith2024
+  statement: HIF1A is up-regulated in endothelial cells of cases.
+  quote: endothelial cells up-regulated HIF1A
+  location: Fig. 4a
+  centrality: main
+  modality: snRNA
+  region: multiple
+  cell_type: Endothelial
+  cell_state: ''
+  claim_type: de_gene
+  direction: up
+  comparison: case vs control
+  genes: [HIF1A]
+  gene_source: text
+  reported_stat: 'log2FC 0.8, p = 0.01 (cells)'
+  unit_of_analysis: cells
+  method: Wilcoxon on cells
+  testable_with: rna
+  test_template: de_pseudobulk
+  requires: ''
+  notes: Tested on cells, not donors, in the paper.
+- id: smith2024-C05
+  paper: smith2024
+  statement: Endothelial cells do not differ in proportion between cases and controls.
+  quote: endothelial proportions did not differ between groups
+  location: Fig. 1c
+  centrality: secondary
+  modality: snRNA
+  region: multiple
+  cell_type: Endothelial
+  cell_state: ''
+  claim_type: composition
+  direction: NA
+  comparison: case vs control
+  genes: []
+  gene_source: ''
+  reported_stat: 'p = 0.6'
+  unit_of_analysis: donors
+  method: Wilcoxon on donor proportions
+  testable_with: rna
+  test_template: composition_donor
+  requires: ''
+  notes: A no-difference claim, rated on equivalence.
+- id: smith2024-C06
+  paper: smith2024
+  statement: MKI67 expression in epithelial cells rises with disease stage.
+  quote: proliferation marker MKI67 increased with stage
+  location: Fig. 5d
+  centrality: main
+  modality: snRNA
+  region: front
+  cell_type: Epithelial
+  cell_state: ''
+  claim_type: pathology_association
+  direction: associated_pos
+  comparison: along disease stage
+  genes: [MKI67]
+  gene_source: text
+  reported_stat: 'Spearman rho 0.6'
+  unit_of_analysis: donors
+  method: Spearman on donor pseudobulk
+  testable_with: rna
+  test_template: de_pseudobulk
+  requires: disease stage
+  notes: ''

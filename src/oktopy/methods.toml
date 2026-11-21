@@ -1,0 +1,733 @@
+# Method registry of the oktopy engine: for every analysis task, the methods we run or could run, ranked into tiers.
+#
+#   primary      sets the verdict; one per task, fixed before results (today's engine method where one exists)
+#   sensitivity  runs beside the primary; can only lower certainty (rating v3, not yet active)
+#   exploratory  reported next to a claim, never rated
+#   excluded     not run (except as the original-method diagnostic); the reason is published
+#
+# Ranking criteria, in order: (1) recommended practice: the single-cell best-practices book (`book`, chapter paths of
+# https://www.sc-best-practices.org) or the scverse guides; (2) donor (or the field's replication unit) as the unit;
+# (3) calibration under the null; (4) power and accuracy in independent benchmarks; (5) robustness to depth, cell
+# numbers and batch; (6) assumptions different from the primary (sensitivity tier); (7) maintained, seeded,
+# installable, preferably an scverse implementation.
+#
+# status: implemented (the engine runs it: `engine` names where) | planned
+# serves: claim test templates (config/schema.toml [vocab] test_template) the method answers
+# confidence (per task): high = independent benchmarks agree with the book; moderate; low = developer benchmarks or none
+#
+# Changes: a pull request that cites the source and what it measured; bump `version`; re-run the affected tests and
+# diff the verdicts. A project may switch methods off in config/methods.toml ([disabled] ids = [...]), never promote.
+# Render: oktopy registry --md OUT.md
+# Sensitivity methods run beside the primary with `oktopy multiverse` (results/multiverse/); each must pass the
+# shuffled-label check in a dataset before its result there counts (phase 7b).
+
+version = "0.3.0"  # 0.3.0 (2026-11-20): first sensitivity methods implemented (phase 7b, oktopy.multiverse); 0.2.0 (2026-11-19): geneset.small primary is the donor score
+reviewed = "2026-11-20"
+book = "sc-best-practices 0.2.0 (2026-10-29)"
+book_url = "https://www.sc-best-practices.org"
+watch = [
+    "sc-best-practices releases and CHANGELOG (https://github.com/theislab/single-cell-best-practices)",
+    "sc-best-practices sections in preparation: imaging-based spatial QC (pull request 514); cell-cell communication across conditions (issue 408)",
+    "scverse proteomics consortium guides (https://github.com/scverse/antibody-based-spatial-proteomics-guide)",
+    "Open Problems living benchmark (https://openproblems.bio)",
+]
+
+# ---------------------------------------------------------------- single-cell and single-nucleus RNA
+
+[task."de.case_control"]
+title = "Differential expression between two donor groups"
+modality = "rna"
+book = "conditions/differential_gene_expression"
+confidence = "high for excluding cell-level tests; moderate for pseudobulk over mixed models"
+note = "Book: pseudobulk per donor and cell type with edgeR or DESeq2; covariates found by PCA of the pseudobulk; genes filtered per cell type. Benchmarks disagree on pseudobulk versus mixed models (Squair 2021, Junttila 2022, Murphy & Skene 2022 versus Zimmerman 2021)."
+
+[[task."de.case_control".method]]
+id = "edger_ql"
+tier = "primary"
+status = "implemented"
+engine = "de_cache.R fit_one: glmQLFit ~ group + age + sex + pmi, filterByExpr per region x class"
+serves = ["de_pseudobulk"]
+unit = "donor x region x class pseudobulk"
+requires = ["raw counts", ">= 3 units per group"]
+evidence = ["sc-best-practices: conditions/differential_gene_expression", "Squair 2021 Nat Commun", "Crowell 2020 Nat Commun", "Junttila 2022 Brief Bioinform", "Murphy & Skene 2022 Nat Commun"]
+why = "recommended by the book; donor is the unit; pseudobulk keeps false discoveries controlled in independent benchmarks"
+
+[[task."de.case_control".method]]
+id = "deseq2"
+tier = "sensitivity"
+status = "implemented"
+engine = "de_sensitivity.R deseq2: Wald test on the DE cache's model matrix and genes, no independent filtering"
+serves = ["de_pseudobulk"]
+unit = "donor x region x class pseudobulk"
+evidence = ["sc-best-practices: conditions/differential_gene_expression", "Squair 2021 Nat Commun"]
+why = "named by the book beside edgeR; different dispersion shrinkage"
+
+[[task."de.case_control".method]]
+id = "limma_voom"
+tier = "sensitivity"
+status = "implemented"
+engine = "de_sensitivity.R limma_voom: voom, lmFit, eBayes(robust) on the DE cache's design and genes"
+serves = ["de_pseudobulk"]
+unit = "donor x region x class pseudobulk"
+evidence = ["Squair 2021 Nat Commun", "Crowell 2020 Nat Commun"]
+why = "different variance model (precision weights on log-CPM)"
+
+[[task."de.case_control".method]]
+id = "dreamlet"
+tier = "sensitivity"
+status = "planned"
+serves = ["de_pseudobulk"]
+unit = "donor random effect over pseudobulk units"
+requires = ["dreamlet and variancePartition (Bioconductor), not in the engine's R environment"]
+evidence = ["Hoffman 2026 Nat Commun", "Zimmerman 2021 Nat Commun"]
+why = "mixed model on pseudobulk: pools several regions per donor; precision weights handle unequal nuclei counts"
+
+[[task."de.case_control".method]]
+id = "nebula"
+tier = "sensitivity"
+status = "planned"
+serves = ["de_pseudobulk"]
+unit = "cells with a donor random effect"
+requires = ["run on the claim's genes only (compute)", "nebula (CRAN), not in the engine's R environment"]
+evidence = ["He 2021 Commun Biol", "Zimmerman 2021 Nat Commun", "Junttila 2022 Brief Bioinform"]
+why = "the other side of the pseudobulk versus mixed-model debate; valid unit"
+
+[[task."de.case_control".method]]
+id = "wilcoxon_pseudobulk"
+tier = "sensitivity"
+status = "implemented"
+engine = "de_sensitivity.R wilcoxon: rank-sum per gene on TMM-normalised CPM, BH; no covariates"
+serves = ["de_pseudobulk"]
+unit = "donor log-CPM"
+requires = ["large cohorts, where the shuffled-label check shows parametric models losing control"]
+evidence = ["Li Y 2022 Genome Biol"]
+why = "keeps false discoveries controlled at population-scale sample sizes"
+
+[[task."de.case_control".method]]
+id = "cell_level_tests"
+tier = "excluded"
+status = "planned"
+serves = ["de_pseudobulk"]
+unit = "cells, no donor effect"
+evidence = ["Squair 2021 Nat Commun", "Junttila 2022 Brief Bioinform", "Murphy 2023 eLife"]
+why = "treats cells as replicates: hundreds of false discoveries; run only as the original-method diagnostic"
+
+[task."de.continuous"]
+title = "Association of expression with a continuous stage or pathology score"
+modality = "rna"
+book = "conditions/differential_gene_expression"
+confidence = "moderate"
+note = "Book: covariates and contrasts in one design matrix."
+
+[[task."de.continuous".method]]
+id = "edger_ql_stage"
+tier = "primary"
+status = "implemented"
+engine = "de_cache.R fit_one with the stage as a continuous term"
+serves = ["de_pseudobulk", "geneset_shift", "state_signature"]
+unit = "donor x region x class pseudobulk"
+evidence = ["sc-best-practices: conditions/differential_gene_expression"]
+why = "same model as the group contrast, with the score as the term of interest"
+
+[[task."de.continuous".method]]
+id = "spearman_pseudobulk"
+tier = "sensitivity"
+status = "implemented"
+engine = "de_sensitivity.R wilcoxon with the stage: Spearman per gene on TMM-normalised CPM, BH"
+serves = ["de_pseudobulk"]
+unit = "donor log-CPM"
+evidence = ["Li Y 2022 Genome Biol"]
+why = "rank-based, no distributional assumption"
+
+[task."geneset.small"]
+title = "Two to four named genes"
+modality = "rna"
+book = "conditions/gsea_pathway"
+confidence = "moderate"
+note = "Book: competitive tests preferred. But the random-gene competitive test ignores correlation between the named genes (Wu & Smyth 2012), and under shuffled case/control labels it gave p < 0.05 in 10-16% of 2-4-gene tests (phase 7a, 2026-11-19). The donor score gave 2.6-5.6% (1.2% with 7 donors), so it is the primary from phase 7a; [tests] min_score_genes sets the threshold (default 2, 5 before)."
+
+[[task."geneset.small".method]]
+id = "donor_score"
+tier = "primary"
+status = "implemented"
+engine = "retest.donor_score_test: per-unit mean of sign x z-scored log-CPM, Mann-Whitney (Spearman for the stage)"
+serves = ["de_pseudobulk", "geneset_shift", "state_signature"]
+unit = "donor x region x class pseudobulk"
+evidence = ["phase 7a shuffled-label calibration: results/robustness/calibration_summary.tsv", "Goeman & Buehlmann 2007 Bioinformatics"]
+why = "donors as the unit; respects correlation between genes; calibrated at 2-4 genes in 23 datasets"
+
+[[task."geneset.small".method]]
+id = "random_set_competitive"
+tier = "excluded"
+status = "implemented"
+engine = "retest.gene_set_test: mean oriented z against 2000 random gene sets of the same size"
+serves = ["de_pseudobulk", "geneset_shift", "state_signature"]
+unit = "edgeR z of donor pseudobulk"
+evidence = ["phase 7a shuffled-label calibration: results/robustness/calibration_summary.tsv", "Wu & Smyth 2012 Nucleic Acids Res"]
+why = "liberal: 10-16% of 2-4-gene null tests at p < 0.05; the primary before phase 7a, used only if a project sets min_score_genes above 2"
+
+[[task."geneset.small".method]]
+id = "camera"
+tier = "sensitivity"
+status = "implemented"
+engine = "de_sensitivity.R limma_voom + camera: genes expected down sign-flipped, inter-gene correlation estimated per set"
+serves = ["de_pseudobulk", "geneset_shift", "state_signature"]
+unit = "donor pseudobulk"
+evidence = ["Wu & Smyth 2012 Nucleic Acids Res"]
+why = "competitive test that allows for correlation between genes"
+
+[[task."geneset.small".method]]
+id = "donor_score_adjusted"
+tier = "sensitivity"
+status = "implemented"
+engine = "multiverse.adjusted_score_test: the donor score in a linear model with the DE cache's covariates, t-test"
+serves = ["de_pseudobulk", "geneset_shift", "state_signature"]
+unit = "donor x region x class pseudobulk"
+evidence = ["sc-best-practices: conditions/differential_gene_expression"]
+why = "same score, parametric and adjusted for age, sex and PMI as the DE model is; the primary is rank-based and unadjusted"
+
+[[task."geneset.small".method]]
+id = "single_gene_fdr"
+tier = "sensitivity"
+status = "planned"
+serves = ["de_pseudobulk"]
+unit = "donor x region x class pseudobulk"
+evidence = ["sc-best-practices: conditions/differential_gene_expression"]
+why = "each named gene on its own, edgeR FDR"
+
+[task."geneset.shift"]
+title = "A programme or pathway of five or more genes shifts between groups"
+modality = "rna"
+book = "conditions/gsea_pathway"
+confidence = "moderate"
+note = "Book: competitive tests preferred, sets of at least 10-15 genes, results depend more on the gene-set resource than on the test. Our primary is self-contained (do these genes move?), which is what claims usually assert; a competitive arm runs beside it."
+
+[[task."geneset.shift".method]]
+id = "donor_score"
+tier = "primary"
+status = "implemented"
+engine = "retest.donor_score_test: per-unit mean of sign x z-scored log-CPM, Mann-Whitney (Spearman for the stage)"
+serves = ["de_pseudobulk", "geneset_shift", "state_signature", "communication_liana", "trajectory", "pathology_correlation"]
+unit = "donor x region x class pseudobulk"
+evidence = ["sc-best-practices: conditions/gsea_pathway", "Goeman & Buehlmann 2007 Bioinformatics"]
+why = "donors as the unit; respects correlation between genes"
+
+[[task."geneset.shift".method]]
+id = "camera"
+tier = "sensitivity"
+status = "implemented"
+engine = "de_sensitivity.R limma_voom + camera: genes expected down sign-flipped, inter-gene correlation estimated per set"
+serves = ["geneset_shift", "state_signature"]
+unit = "donor pseudobulk"
+evidence = ["sc-best-practices: conditions/gsea_pathway", "Wu & Smyth 2012 Nucleic Acids Res"]
+why = "competitive arm, as the book prefers, with correlation between genes allowed for"
+
+[[task."geneset.shift".method]]
+id = "donor_score_adjusted"
+tier = "sensitivity"
+status = "implemented"
+engine = "multiverse.adjusted_score_test: the donor score in a linear model with the DE cache's covariates, t-test"
+serves = ["geneset_shift", "state_signature"]
+unit = "donor x region x class pseudobulk"
+evidence = ["sc-best-practices: conditions/differential_gene_expression"]
+why = "same score, parametric and adjusted for age, sex and PMI as the DE model is; the primary is rank-based and unadjusted"
+
+[[task."geneset.shift".method]]
+id = "decoupler_ulm"
+tier = "sensitivity"
+status = "planned"
+serves = ["geneset_shift"]
+unit = "donor pseudobulk"
+requires = ["decoupler (Python), not in the engine's analysis environment"]
+evidence = ["sc-best-practices: conditions/gsea_pathway", "Badia-i-Mompel 2022 Bioinform Adv"]
+why = "activity score on pseudobulk; scverse implementation"
+
+[[task."geneset.shift".method]]
+id = "second_resource"
+tier = "sensitivity"
+status = "planned"
+serves = ["geneset_shift"]
+unit = "as the primary"
+evidence = ["sc-best-practices: conditions/gsea_pathway"]
+why = "the book: results depend more on the gene-set resource than on the test"
+
+[[task."geneset.shift".method]]
+id = "cell_scores_per_donor"
+tier = "exploratory"
+status = "planned"
+serves = ["geneset_shift", "state_signature"]
+unit = "AUCell or UCell per cell, averaged per donor"
+evidence = ["sc-best-practices: conditions/gsea_pathway"]
+why = "single-cell scoring, then donors as the unit"
+
+[task."composition.case_control"]
+title = "A cell class gains or loses share between groups"
+modality = "rna"
+book = "conditions/compositional"
+confidence = "low"
+note = "Book: scCODA or tascCODA for known cell types (needs a reference type stable across groups); Milo or DA-seq when cells do not cluster distinctly. Simmons 2022 (preprint) favoured propeller; no independent comparison includes the CLR test."
+
+[[task."composition.case_control".method]]
+id = "clr_mwu"
+tier = "primary"
+status = "implemented"
+engine = "retest.composition_test: CLR of unit proportions (+0.5), Mann-Whitney (Spearman for the stage)"
+serves = ["composition_donor"]
+unit = "donor x region"
+evidence = ["sc-best-practices: conditions/compositional", "Aitchison 1986"]
+why = "compositional (CLR); donors as the unit; no reference type needed"
+
+[[task."composition.case_control".method]]
+id = "sccoda"
+tier = "sensitivity"
+status = "planned"
+serves = ["composition_donor"]
+unit = "donor x region counts"
+requires = ["pertpy (Python), not in the engine's analysis environment", "a reference cell type stable across groups"]
+evidence = ["sc-best-practices: conditions/compositional", "Buettner 2021 Nat Commun"]
+why = "recommended by the book; Bayesian compositional model (pertpy)"
+
+[[task."composition.case_control".method]]
+id = "propeller"
+tier = "sensitivity"
+status = "implemented"
+engine = "composition_sensitivity.R: speckle's propeller.ttest (logit) written with limma; eBayes(robust) across classes"
+serves = ["composition_donor"]
+unit = "donor x region proportions"
+evidence = ["Phipson 2022 Bioinformatics", "Simmons 2022 bioRxiv"]
+why = "did well in the only independent comparison; empirical Bayes on transformed proportions"
+
+[[task."composition.case_control".method]]
+id = "sccomp"
+tier = "sensitivity"
+status = "planned"
+serves = ["composition_donor"]
+unit = "donor x region counts"
+requires = ["sccomp and cmdstan (Stan), not in the engine's R environment"]
+evidence = ["Mangiola 2023 PNAS"]
+why = "beta-binomial model robust to outlying samples"
+
+[[task."composition.case_control".method]]
+id = "milo"
+tier = "exploratory"
+status = "planned"
+serves = ["composition_donor", "state_signature"]
+unit = "kNN neighbourhoods, donors as replicates"
+evidence = ["sc-best-practices: conditions/compositional", "Dann 2022 Nat Biotechnol", "Yi 2024 Genome Biol"]
+why = "states between clusters; no labels needed"
+
+[[task."composition.case_control".method]]
+id = "cell_count_tests"
+tier = "excluded"
+status = "planned"
+serves = ["composition_donor"]
+unit = "cells, no donor"
+evidence = ["sc-best-practices: conditions/compositional", "Simmons 2022 bioRxiv"]
+why = "Fisher or chi-square on pooled cell counts treats cells as replicates"
+
+[task."composition.labels"]
+title = "Share of the authors' labelled state within its class"
+modality = "rna"
+book = "conditions/compositional"
+confidence = "low"
+note = "Used where a dataset carries the claim's state as an author label (claims/state_labels.tsv)."
+
+[[task."composition.labels".method]]
+id = "label_logodds"
+tier = "primary"
+status = "implemented"
+engine = "retest.label_composition_test: log odds of the labels' share per unit"
+serves = ["composition_donor", "state_signature"]
+unit = "donor x region"
+evidence = ["sc-best-practices: conditions/compositional"]
+why = "tests the labelled state directly; donors as the unit"
+
+[task."state.existence"]
+title = "A distinct cell state exists"
+modality = "rna"
+book = "cellular_structure/clustering"
+confidence = "low"
+note = "Book: Leiden on a kNN graph, sub-clustering at other resolutions for finer states."
+
+[[task."state.existence".method]]
+id = "state_coherence"
+tier = "primary"
+status = "implemented"
+engine = "retest.state_existence_test: marker coherence against matched random genes, tail ratio, donor spread"
+serves = ["state_signature"]
+unit = "nuclei, summarised per donor"
+evidence = ["sc-best-practices: cellular_structure/clustering"]
+why = "asks whether the markers mark a distinct subpopulation present across donors"
+
+[[task."state.existence".method]]
+id = "leiden_resolutions"
+tier = "sensitivity"
+status = "planned"
+serves = ["state_signature"]
+unit = "nuclei, summarised per donor"
+evidence = ["sc-best-practices: cellular_structure/clustering"]
+why = "the state should appear across clustering resolutions"
+
+[task."annotation"]
+title = "Cell classes and states"
+modality = "rna"
+book = "cellular_structure/annotation"
+confidence = "moderate"
+note = "Book: CellTypist and scArches-based reference mapping, only as good as the reference."
+
+[[task."annotation".method]]
+id = "author_labels_marker_check"
+tier = "primary"
+status = "implemented"
+engine = "harmonise: authors' labels mapped to classes, checked against marker genes"
+serves = ["composition_donor", "state_signature", "de_pseudobulk"]
+unit = "nuclei"
+evidence = ["sc-best-practices: cellular_structure/annotation"]
+why = "keeps the authors' expert labels and checks them"
+
+[[task."annotation".method]]
+id = "reference_mapping"
+tier = "sensitivity"
+status = "planned"
+serves = ["composition_donor", "state_signature"]
+unit = "nuclei"
+evidence = ["sc-best-practices: cellular_structure/annotation", "Abdelaal 2019 Genome Biol", "Ergen 2024 Nat Genet"]
+why = "CellTypist or scArches label transfer to one shared reference; popV ensemble gives a per-cell uncertainty"
+
+[task."integration"]
+title = "Combining datasets (only when a method needs it)"
+modality = "rna"
+book = "cellular_structure/integration"
+confidence = "high"
+note = "Tests run within each dataset, so no integration is needed for the verdicts."
+
+[[task."integration".method]]
+id = "scanvi"
+tier = "exploratory"
+status = "planned"
+serves = []
+unit = "nuclei"
+evidence = ["sc-best-practices: cellular_structure/integration", "Luecken 2022 Nat Methods"]
+why = "the book's choice when labels exist; judged with scIB metrics"
+
+[task."trajectory"]
+title = "Order of states along a trajectory"
+modality = "rna"
+book = "trajectories/pseudotemporal"
+confidence = "low"
+note = "Book: choose the method by the expected topology (dynguidelines); the start must be known."
+
+[[task."trajectory".method]]
+id = "trajectory_gene_proxy"
+tier = "primary"
+status = "implemented"
+engine = "retest.gene_level_by_class on the trajectory's genes (a proxy for the order, flagged as indirect)"
+serves = ["trajectory"]
+unit = "donor x region x class pseudobulk"
+evidence = ["sc-best-practices: trajectories/pseudotemporal"]
+why = "until a donor-aware trajectory test exists; tests the genes, not the order"
+
+[[task."trajectory".method]]
+id = "lamian"
+tier = "sensitivity"
+status = "planned"
+serves = ["trajectory"]
+unit = "donors along pseudotime"
+evidence = ["sc-best-practices: trajectories/pseudotemporal", "Saelens 2019 Nat Biotechnol", "Hou 2023 Nat Commun"]
+why = "multi-donor test along pseudotime; candidate to replace the proxy as primary"
+
+[task."communication"]
+title = "Cell-cell communication"
+modality = "rna"
+book = "mechanisms/cell_cell_communication"
+confidence = "low"
+note = "Book: the ligand-receptor resource is key; a section on changes across conditions is in preparation."
+
+[[task."communication".method]]
+id = "ligand_receptor_gene_proxy"
+tier = "primary"
+status = "implemented"
+engine = "retest.gene_level_by_class on the ligand and receptor genes (a proxy, flagged as indirect)"
+serves = ["communication_liana"]
+unit = "donor x region x class pseudobulk"
+evidence = ["sc-best-practices: mechanisms/cell_cell_communication"]
+why = "until a per-donor interaction test exists"
+
+[[task."communication".method]]
+id = "liana_per_donor"
+tier = "exploratory"
+status = "planned"
+serves = ["communication_liana"]
+unit = "interaction scores per donor"
+evidence = ["sc-best-practices: mechanisms/cell_cell_communication", "Dimitrov 2022 Nat Commun"]
+why = "LIANA+ consensus over two resources, then a donor-level test"
+
+[task."activity"]
+title = "Transcription factor or pathway activity"
+modality = "rna"
+book = "mechanisms/gene_regulatory_networks"
+confidence = "moderate"
+note = "Book: TF activity from a prior-knowledge network (CollecTRI) is the robust default."
+
+[[task."activity".method]]
+id = "decoupler_collectri"
+tier = "sensitivity"
+status = "planned"
+serves = ["geneset_shift"]
+unit = "donor pseudobulk"
+evidence = ["sc-best-practices: mechanisms/gene_regulatory_networks", "Badia-i-Mompel 2022 Bioinform Adv", "Mueller-Dott 2023 Nucleic Acids Res"]
+why = "ulm with CollecTRI (TFs) or PROGENy (pathways)"
+
+[task."pathology.association"]
+title = "A change tracks pathology across donors"
+modality = "rna"
+book = "conditions/differential_gene_expression"
+confidence = "moderate"
+note = ""
+
+[[task."pathology.association".method]]
+id = "donor_permutation_correlation"
+tier = "primary"
+status = "implemented"
+engine = "retest.pathology_shift_test: donor-level correlation, label permutation"
+serves = ["pathology_correlation"]
+unit = "donor x region"
+evidence = ["sc-best-practices: conditions/differential_gene_expression"]
+why = "donors as the unit; exact permutation null"
+
+[task."genetics.enrichment"]
+title = "Risk genes concentrate in a cell type"
+modality = "rna"
+book = ""
+confidence = "moderate"
+note = "The field supplies the genetic resource through the genetic_test hook ([tests] genetic_test)."
+
+[[task."genetics.enrichment".method]]
+id = "field_genetic_hook"
+tier = "primary"
+status = "implemented"
+engine = "retest.genetic_test -> the project's hook"
+serves = ["genetic_enrichment"]
+unit = "genes"
+evidence = ["de Leeuw 2015 PLoS Comput Biol (MAGMA)"]
+why = "field-specific resource, engine-independent test"
+
+# ---------------------------------------------------------------- spatial
+
+[task."spatial.qc"]
+title = "Spatial data and quality control"
+modality = "spatial"
+book = "spatial/data_structures"
+confidence = "moderate"
+note = "Book: SpatialData and Squidpy; an imaging-based QC chapter (Xenium-type data) is in preparation."
+
+[[task."spatial.qc".method]]
+id = "spatialdata_qc"
+tier = "primary"
+status = "planned"
+serves = ["spatial_neighbourhood"]
+unit = "section"
+evidence = ["sc-best-practices: spatial/data_structures", "Marconato 2025 Nat Methods"]
+why = "scverse data structure; QC of transcripts, segmentation and images"
+
+[task."spatial.domains"]
+title = "Spatial domains or layers"
+modality = "spatial"
+book = "spatial/domains"
+confidence = "low"
+note = "No single winner (Yuan 2024); BASS, GraphST, BANKSY, SpatialPCA lead (Hu 2024); no library-size normalisation before domain calling (Bhuva 2024)."
+
+[[task."spatial.domains".method]]
+id = "anatomical_labels"
+tier = "primary"
+status = "planned"
+serves = ["spatial_neighbourhood", "composition_donor"]
+unit = "section"
+evidence = ["sc-best-practices: spatial/domains"]
+why = "where the anatomy is known (layers), marker-based labels are the most interpretable"
+
+[[task."spatial.domains".method]]
+id = "domain_methods"
+tier = "sensitivity"
+status = "planned"
+serves = ["spatial_neighbourhood", "composition_donor"]
+unit = "section"
+evidence = ["sc-best-practices: spatial/domains", "Yuan 2024 Nat Methods", "Hu 2024 Genome Biol", "Bhuva 2024 Genome Biol"]
+why = "two or three of BANKSY, BASS, GraphST, SpatialPCA, SpaGCN, the Squidpy combined graph, from different families"
+
+[task."spatial.neighbourhood"]
+title = "Cell types sit together or apart"
+modality = "spatial"
+book = "spatial/neighborhood"
+confidence = "low"
+note = "Book: Squidpy spatial statistics as the starting point; no benchmark found."
+
+[[task."spatial.neighbourhood".method]]
+id = "squidpy_nhood_per_donor"
+tier = "primary"
+status = "planned"
+serves = ["spatial_neighbourhood"]
+unit = "section statistic averaged per donor"
+evidence = ["sc-best-practices: spatial/neighborhood"]
+why = "label permutation within each section; donors as the unit"
+
+[[task."spatial.neighbourhood".method]]
+id = "squidpy_co_occurrence"
+tier = "sensitivity"
+status = "planned"
+serves = ["spatial_neighbourhood"]
+unit = "section statistic averaged per donor"
+evidence = ["sc-best-practices: spatial/neighborhood"]
+why = "distance-resolved; different statistic"
+
+[[task."spatial.neighbourhood".method]]
+id = "pooled_sections"
+tier = "excluded"
+status = "planned"
+serves = ["spatial_neighbourhood"]
+unit = "all sections pooled"
+evidence = ["sc-best-practices: spatial/neighborhood"]
+why = "one statistic over pooled sections ignores donors"
+
+[task."spatial.de"]
+title = "Expression differences by cell type or domain in spatial data"
+modality = "spatial"
+book = "spatial/introduction"
+confidence = "low"
+note = "No neutral multi-donor benchmark; pseudobulk per sample and domain is current practice (Huuki-Myers 2024)."
+
+[[task."spatial.de".method]]
+id = "spatial_pseudobulk"
+tier = "primary"
+status = "planned"
+serves = ["de_pseudobulk", "geneset_shift"]
+unit = "donor x domain x class pseudobulk"
+evidence = ["Huuki-Myers 2024 Science"]
+why = "same model as the snRNA primary"
+
+[[task."spatial.de".method]]
+id = "c_side"
+tier = "sensitivity"
+status = "planned"
+serves = ["de_pseudobulk"]
+unit = "spots with replicates"
+evidence = ["Cable 2022 Nat Methods"]
+why = "cell-type-specific DE on spot platforms"
+
+[task."spatial.gradient"]
+title = "Expression or density changes with distance to a feature"
+modality = "spatial"
+book = "spatial/spatially_variable_genes"
+confidence = "low"
+note = "Book: use several SVG methods and look at the genes in space. SPARK-X best, most methods poorly calibrated (Li Z 2025)."
+
+[[task."spatial.gradient".method]]
+id = "distance_regression_per_donor"
+tier = "primary"
+status = "planned"
+serves = ["spatial_neighbourhood"]
+unit = "per-donor slope"
+evidence = ["sc-best-practices: spatial/spatially_variable_genes"]
+why = "tests the claim's direction directly"
+
+[[task."spatial.gradient".method]]
+id = "spark_x"
+tier = "sensitivity"
+status = "planned"
+serves = ["spatial_neighbourhood"]
+unit = "section"
+evidence = ["Chen 2024 Genome Biol", "Li Z 2025 Genome Biol"]
+why = "best-calibrated SVG method in two benchmarks"
+
+[task."spatial.deconvolution"]
+title = "Cell-type proportions in spot-based data"
+modality = "spatial"
+book = "spatial/deconvolution"
+confidence = "high"
+note = "Book: cell2location best but heavier; SpatialDWLS and RCTD close. Li B 2022 and Sang-aram 2024 agree."
+
+[[task."spatial.deconvolution".method]]
+id = "cell2location"
+tier = "primary"
+status = "planned"
+serves = ["composition_donor"]
+unit = "spot"
+evidence = ["sc-best-practices: spatial/deconvolution", "Li B 2022 Nat Methods", "Sang-aram 2024 eLife"]
+why = "top in the book and both benchmarks"
+
+[[task."spatial.deconvolution".method]]
+id = "rctd"
+tier = "sensitivity"
+status = "planned"
+serves = ["composition_donor"]
+unit = "spot"
+evidence = ["sc-best-practices: spatial/deconvolution", "Sang-aram 2024 eLife"]
+why = "close second, different model"
+
+# ---------------------------------------------------------------- other modalities
+
+[task."atac.da"]
+title = "Chromatin accessibility differences"
+modality = "atac"
+book = "chromatin_accessibility/peaks_motifs"
+confidence = "high"
+note = "Book: peaks called per cell type, merged into one fixed-width set; QC by fragment counts and TSS enrichment. Teo 2024: pseudobulk best in all 12 analyses."
+
+[[task."atac.da".method]]
+id = "atac_pseudobulk_edger"
+tier = "primary"
+status = "planned"
+serves = ["chromatin_da"]
+unit = "donor x region x class pseudobulk on a common peak set"
+evidence = ["sc-best-practices: chromatin_accessibility/peaks_motifs", "Teo 2024 Nat Commun"]
+why = "the same donor-level model as RNA; best in the scATAC benchmark"
+
+[[task."atac.da".method]]
+id = "chromvar_per_donor"
+tier = "sensitivity"
+status = "planned"
+serves = ["chromatin_da"]
+unit = "donor"
+evidence = ["sc-best-practices: chromatin_accessibility/peaks_motifs"]
+why = "motif activity rather than single peaks"
+
+[task."proteomics.da"]
+title = "Protein abundance differences (bulk mass spectrometry)"
+modality = "proteomics"
+book = ""
+confidence = "moderate to high"
+note = "Not in the book; scverse proteomics consortium guides are in preparation. Peng 2024: top workflows use limma, DEqMS or ROTS."
+
+[[task."proteomics.da".method]]
+id = "limma_proteomics"
+tier = "primary"
+status = "planned"
+serves = ["de_pseudobulk", "geneset_shift"]
+unit = "donor x region sample"
+evidence = ["Kammers 2015 EuPA Open Proteom", "Peng 2024 Nat Commun"]
+why = "moderated tests on log2 intensities"
+
+[[task."proteomics.da".method]]
+id = "deqms"
+tier = "sensitivity"
+status = "planned"
+serves = ["de_pseudobulk"]
+unit = "donor x region sample"
+evidence = ["Zhu 2020 Mol Cell Proteomics", "Peng 2024 Nat Commun"]
+why = "variance depends on peptide counts"
+
+[task."metabolomics.da"]
+title = "Metabolite differences"
+modality = "metabolomics"
+book = ""
+confidence = "moderate for normalisation, low for tests"
+note = "Not in the book; no neutral benchmark of case-control tests (Vinaixa 2012 is a guideline)."
+
+[[task."metabolomics.da".method]]
+id = "pqn_linear_model"
+tier = "primary"
+status = "planned"
+serves = ["de_pseudobulk"]
+unit = "donor x region sample"
+evidence = ["Dieterle 2006 Anal Chem", "Li B 2016 Sci Rep"]
+why = "probabilistic quotient normalisation, then a linear model on log values"

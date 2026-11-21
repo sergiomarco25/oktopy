@@ -1,0 +1,21 @@
+cff-version: 1.2.0
+message: "If you use oktopy, please cite it as below."
+title: "oktopy: re-tested, rated claim stores for single-cell fields"
+abstract: >-
+  Published conclusions of a field's single-cell studies, extracted as structured claims, re-tested at donor level
+  in their own data and in every other harmonised dataset, pooled, rated for certainty, and served as a claim store,
+  knowledge graph, atlas and MCP server.
+type: software
+authors:
+  - family-names: "Marco Salas"
+    given-names: "Sergio"
+repository-code: "https://github.com/sergiomarco25/oktopy"
+license: Apache-2.0
+version: 0.1.0
+keywords:
+  - single-cell
+  - replication
+  - meta-analysis
+  - pseudobulk
+  - knowledge graph
+  - Model Context Protocol

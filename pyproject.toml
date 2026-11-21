@@ -1,0 +1,57 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "oktopy"
+dynamic = ["version"]
+description = "Re-test published single-cell claims at donor level across datasets, rate them and serve the evidence"
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+requires-python = ">=3.11"
+authors = [{ name = "Sergio Marco Salas" }]
+keywords = ["single-cell", "replication", "meta-analysis", "claims", "pseudobulk", "knowledge graph"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "numpy>=1.24",
+    "pandas>=2.0",
+    "scipy>=1.10",
+    "pyyaml>=6.0",
+    "jsonschema>=4.0",
+]
+
+[project.optional-dependencies]
+# reading single-cell data: harmonise, relabel, pseudobulk, the re-tests that read nuclei
+analysis = ["anndata>=0.10", "scanpy>=1.10", "h5py>=3.8", "python-igraph>=0.10", "leidenalg>=0.10"]
+# running the steps as a Snakemake workflow (laptop or SLURM)
+workflow = ["snakemake>=8", "snakemake-executor-plugin-slurm"]
+test = ["pytest>=7"]
+all = ["oktopy[analysis,workflow,test]"]
+
+[project.scripts]
+oktopy = "oktopy.cli:main"
+
+[project.urls]
+Repository = "https://github.com/sergiomarco25/oktopy"
+
+[tool.setuptools.dynamic]
+version = { attr = "oktopy.__version__" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["oktopy"]
+
+[tool.setuptools.package-data]
+oktopy = ["*.R", "*.html", "*.toml", "template/**/*", "example/**/*", "skill/**/*"]
+
+[tool.setuptools.exclude-package-data]
+oktopy = ["**/__pycache__/*", "**/*.pyc"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-p no:cacheprovider"

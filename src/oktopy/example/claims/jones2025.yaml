@@ -1,0 +1,90 @@
+# Claims of a fictitious paper (Jones et al. 2025) for the oktopy worked example; the data are synthetic
+# (src/{{package}}/build/_synthetic.py says which effects are planted). Format: claims/SCHEMA.md, config/schema.toml.
+- id: jones2025-C01
+  paper: jones2025
+  statement: The share of immune cells is increased in cases.
+  quote: we observed more immune cells in cases
+  location: Fig. 1b
+  centrality: headline
+  modality: snRNA
+  region: front
+  cell_type: Immune
+  cell_state: ''
+  claim_type: composition
+  direction: up
+  comparison: case vs control
+  genes: []
+  gene_source: ''
+  reported_stat: 'p = 0.03, 50 cases and 50 controls'
+  unit_of_analysis: donors
+  method: t-test on donor proportions
+  testable_with: rna
+  test_template: composition_donor
+  requires: ''
+  notes: ''
+- id: jones2025-C02
+  paper: jones2025
+  statement: COL3A1 is down-regulated in fibroblasts of cases.
+  quote: fibroblasts lost COL3A1 expression in cases
+  location: Fig. 2c
+  centrality: main
+  modality: snRNA
+  region: front
+  cell_type: Fibroblast
+  cell_state: ''
+  claim_type: de_gene
+  direction: down
+  comparison: case vs control
+  genes: [COL3A1]
+  gene_source: text
+  reported_stat: 'log2FC -0.5, p = 0.04 (cells)'
+  unit_of_analysis: cells
+  method: MAST on cells
+  testable_with: rna
+  test_template: de_pseudobulk
+  requires: ''
+  notes: ''
+- id: jones2025-C03
+  paper: jones2025
+  statement: Interferon-stimulated genes are up-regulated in epithelial cells of cases.
+  quote: interferon-stimulated genes rose in epithelial cells
+  location: Fig. 3a
+  centrality: main
+  modality: snRNA
+  region: front
+  cell_type: Epithelial
+  cell_state: interferon response
+  claim_type: de_pathway
+  direction: up
+  comparison: case vs control
+  genes: [ISG15, MX1, IFIT3]
+  gene_source: text
+  reported_stat: 'score difference 0.4'
+  unit_of_analysis: donors
+  method: pseudobulk score
+  testable_with: rna
+  test_template: geneset_shift
+  requires: ''
+  notes: ''
+- id: jones2025-C04
+  paper: jones2025
+  statement: Immune cells lie closer to epithelial cells in cases than in controls.
+  quote: immune cells clustered around epithelium in cases
+  location: Fig. 4
+  centrality: main
+  modality: spatial-other
+  region: front
+  cell_type: Immune; Epithelial
+  cell_state: ''
+  claim_type: spatial_colocalisation
+  direction: up
+  comparison: case vs control
+  genes: []
+  gene_source: ''
+  reported_stat: 'neighbourhood enrichment z = 3.1'
+  unit_of_analysis: samples
+  method: neighbourhood enrichment
+  testable_with: spatial
+  test_template: not_testable
+  requires: spatial data
+  notes: No spatial dataset in the example, so this claim stays Untested.

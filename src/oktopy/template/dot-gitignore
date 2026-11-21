@@ -1,0 +1,9 @@
+__pycache__/
+.snakemake/
+.pytest_cache/
+data/
+results/
+scratch/
+*.h5ad
+# atlas pages (oktopy atlas): rebuilt from the store, published with a release
+reports/

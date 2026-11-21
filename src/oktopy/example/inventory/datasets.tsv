@@ -1,0 +1,3 @@
+cohort	papers	regions	modality	n_case	n_control	accession	data_access	local	comparator_tier	tier_reason	screening
+smith-cohort	smith2024	front;back	snRNA	56	56	synthetic	open	yes			include
+jones-cohort	jones2025	front	snRNA	50	50	synthetic	open	yes			include

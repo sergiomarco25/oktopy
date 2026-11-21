@@ -1,0 +1,31 @@
+# Everything oktopy needs on a laptop, a workstation or a cluster node: Python with the analysis extras, R with
+# edgeR, limma, DESeq2 and data.table, Snakemake for the workflow (with the SLURM executor), pytest for the checks.
+#   mamba env create -f envs/oktopy.yml       (or conda env create -f envs/oktopy.yml)
+#   mamba activate oktopy
+#   pip install -e .                          (in a clone of oktopy; or: pip install "oktopy @ git+<repository>@<tag>")
+# Versions are lower bounds; the Docker image (Dockerfile) is built from this file and tested in CI.
+name: oktopy
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - python>=3.11,<3.14
+  - pip
+  - numpy>=1.24
+  - pandas>=2.0
+  - scipy>=1.10
+  - pyyaml>=6.0
+  - jsonschema>=4.0
+  - anndata>=0.10
+  - scanpy>=1.10
+  - h5py>=3.8
+  - python-igraph>=0.10
+  - leidenalg>=0.10
+  - pytest>=7
+  - snakemake-minimal>=8
+  - snakemake-executor-plugin-slurm
+  - r-base>=4.3
+  - r-data.table
+  - bioconductor-edger
+  - bioconductor-limma
+  - bioconductor-deseq2

@@ -1,0 +1,3 @@
+label	ontology	term	ontology_id	ontology_label	check
+snRNA	efo	single nucleus RNA sequencing	EFO:0009809	single nucleus RNA sequencing	ok
+spatial-other		spatial transcriptomics, other			no term
