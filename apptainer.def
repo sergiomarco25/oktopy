@@ -1,0 +1,27 @@
+# Apptainer (Singularity) image of oktopy for HPC clusters without Docker: the same steps as the Dockerfile.
+#   apptainer build oktopy.sif apptainer.def          (in a clone of oktopy; may need --fakeroot)
+#   apptainer exec --bind "$PWD" oktopy.sif oktopy example demo
+#   cd demo && apptainer exec --bind "$PWD" ../oktopy.sif oktopy run
+Bootstrap: docker
+From: mambaorg/micromamba:1.5.10
+
+%files
+    . /opt/oktopy
+
+%post
+    export MAMBA_ROOT_PREFIX=/opt/conda
+    micromamba install -y -r /opt/conda -n base -f /opt/oktopy/envs/oktopy.yml
+    micromamba clean -r /opt/conda --all --yes
+    /opt/conda/bin/python -m pip install --no-deps --no-cache-dir /opt/oktopy
+    /opt/conda/bin/oktopy --version
+    /opt/conda/bin/Rscript -e 'suppressPackageStartupMessages({library(edgeR); library(limma); library(DESeq2); library(data.table)})'
+
+%environment
+    export PATH=/opt/conda/bin:$PATH
+
+%runscript
+    exec oktopy "$@"
+
+%labels
+    org.opencontainers.image.title oktopy
+    org.opencontainers.image.licenses Apache-2.0

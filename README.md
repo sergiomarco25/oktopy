@@ -90,7 +90,7 @@ says which decisions are yours.
 |---|---|
 | Laptop or workstation | `oktopy run` in the project folder (one step after another), or `snakemake` (4 cores by default) |
 | SLURM cluster | `snakemake --profile workflow/profiles/slurm` in the project folder: one job per dataset and step; set partition and QOS in the profile, memory per dataset in `[pipeline] mem_gb` |
-| Container, cloud VM | the Docker image (`oktopy` is its entry point); on a cluster, `apptainer build oktopy.sif docker-daemon://oktopy:latest` |
+| Container, cloud VM | the Docker image (`oktopy` is its entry point); on a cluster, `apptainer build oktopy.sif apptainer.def` |
 | Serving | `oktopy serve` (MCP over stdio) or `oktopy http` (MCP and REST over HTTP) on a built store |
 
 [docs/running.md](docs/running.md) has the details: profiles, paths on shared file systems, memory, containers.

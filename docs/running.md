@@ -61,10 +61,12 @@ docker build -t oktopy .
 docker run --rm -u "$(id -u):$(id -g)" -v "$PWD/my-field":/work oktopy run
 ```
 
-On a cluster without Docker, convert it to an Apptainer (Singularity) image once and run commands through it:
+On a cluster without Docker, build an Apptainer (Singularity) image from `apptainer.def` (the same steps as the
+Dockerfile; add `--fakeroot` if your site requires it), or convert a Docker image you built elsewhere
+(`apptainer build oktopy.sif docker-daemon://oktopy:latest`), and run commands through it:
 
 ```bash
-apptainer build oktopy.sif docker-daemon://oktopy:latest
+apptainer build oktopy.sif apptainer.def
 ```
 
 ```bash
